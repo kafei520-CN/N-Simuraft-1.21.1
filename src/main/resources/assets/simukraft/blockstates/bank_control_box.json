@@ -1,7 +1,19 @@
 {
   "variants": {
-    "": {
+    "facing=east": {
+      "model": "simukraft:block/bank_control_box",
+      "y": 90
+    },
+    "facing=north": {
       "model": "simukraft:block/bank_control_box"
+    },
+    "facing=south": {
+      "model": "simukraft:block/bank_control_box",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "simukraft:block/bank_control_box",
+      "y": 270
     }
   }
 }

@@ -1,9 +1,10 @@
 {
+  "format_version": "1.9.0",
   "credit": "Made with Blockbench",
   "parent": "minecraft:block/block",
-  "texture_size": [64, 64],
   "textures": {
-    "0": "simukraft:block/bank_control_box",
+    "4": "simukraft:block/bank_control_box",
+    "5": "simukraft:block/iron_block",
     "particle": "simukraft:block/bank_control_box"
   },
   "elements": [
@@ -11,13 +12,48 @@
       "from": [0, 0, 0],
       "to": [16, 16, 16],
       "faces": {
-        "north": {"uv": [0, 0, 4, 4], "texture": "#0"},
-        "east": {"uv": [0, 4, 4, 8], "texture": "#0"},
-        "south": {"uv": [4, 0, 8, 4], "texture": "#0"},
-        "west": {"uv": [4, 4, 8, 8], "texture": "#0"},
-        "up": {"uv": [4, 12, 0, 8], "texture": "#0"},
-        "down": {"uv": [12, 0, 8, 4], "texture": "#0"}
+        "north": {"uv": [0, 0, 16, 16], "texture": "#4", "cullface": "north"},
+        "east": {"uv": [0, 0, 16, 16], "texture": "#5", "cullface": "east"},
+        "south": {"uv": [0, 0, 16, 16], "texture": "#5", "cullface": "south"},
+        "west": {"uv": [0, 0, 16, 16], "texture": "#5", "cullface": "west"},
+        "up": {"uv": [0, 0, 16, 16], "texture": "#5", "cullface": "up"},
+        "down": {"uv": [0, 0, 16, 16], "texture": "#5", "cullface": "down"}
       }
     }
-  ]
+  ],
+  "display": {
+    "thirdperson_righthand": {
+      "rotation": [75, 45, 0],
+      "translation": [0, 2.5, 0],
+      "scale": [0.375, 0.375, 0.375]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [75, 45, 0],
+      "translation": [0, 2.5, 0],
+      "scale": [0.375, 0.375, 0.375]
+    },
+    "firstperson_righthand": {
+      "rotation": [0, 45, 0],
+      "scale": [0.4, 0.4, 0.4]
+    },
+    "firstperson_lefthand": {
+      "rotation": [0, -135, 0],
+      "scale": [0.4, 0.4, 0.4]
+    },
+    "ground": {
+      "translation": [0, 3, 0],
+      "scale": [0.25, 0.25, 0.25]
+    },
+    "gui": {
+      "rotation": [30, 225, 0],
+      "scale": [0.625, 0.625, 0.625]
+    },
+    "head": {
+      "rotation": [0, -180, 0],
+      "translation": [0, 13, 7]
+    },
+    "fixed": {
+      "scale": [0.5, 0.5, 0.5]
+    }
+  }
 }
