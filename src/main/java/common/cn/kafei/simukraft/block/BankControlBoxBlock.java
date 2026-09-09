@@ -47,7 +47,8 @@ public final class BankControlBoxBlock extends Block {
     /** mirror: 结构镜像时同步水平朝向。 */
     @Override
     protected BlockState mirror(BlockState state, Mirror mirror) {
-        return state.rotate(mirror.getRotation(state.getValue(BlockStateProperties.HORIZONTAL_FACING)));
+        Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+        return state.setValue(BlockStateProperties.HORIZONTAL_FACING, mirror.getRotation(facing).rotate(facing));
     }
 
     /** useWithoutItem: 空手右键打开银行控制箱。 */
