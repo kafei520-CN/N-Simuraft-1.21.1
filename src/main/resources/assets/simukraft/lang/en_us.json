@@ -39,7 +39,7 @@
     "item.simukraft.manifest":  "NSUK Manifest",
     "item.simukraft.portable_city_core":  "NSUK Portable City Core",
     "item.simukraft.geological_hammer":  "NSUK Geological Hammer",
-    "tooltip.simukraft.geological_hammer.description": "A blurred inscription rests on the handle, as though it commemorates someone.",
+    "tooltip.simukraft.geological_hammer.description": "NSUK Geological Hammer can analyze nearby vein traces to help you locate veins.",
     "item.simukraft.drill_rod_segment":  "NSUK Drill Rod Segment",
     "item.simukraft.shallow_drill_bit":  "NSUK Shallow Drill Bit",
     "item.simukraft.deep_drill_bit":  "NSUK Deep Drill Bit",

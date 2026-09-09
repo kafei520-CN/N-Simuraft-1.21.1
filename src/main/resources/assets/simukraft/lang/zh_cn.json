@@ -39,7 +39,7 @@
     "item.simukraft.manifest":  "NSUK-清单",
     "item.simukraft.portable_city_core":  "NSUK-便携式城市核心",
     "item.simukraft.geological_hammer":  "NSUK-地质锤",
-    "tooltip.simukraft.geological_hammer.description": "手柄上有一段模糊的字，像是在纪念谁",
+    "tooltip.simukraft.geological_hammer.description": "NSUK-地质锤可以分析附近的矿脉痕迹，帮助你找到矿脉位置。",
     "item.simukraft.drill_rod_segment":  "NSUK-钻杆段",
     "item.simukraft.shallow_drill_bit":  "NSUK-浅层钻头",
     "item.simukraft.deep_drill_bit":  "NSUK-深层钻头",
