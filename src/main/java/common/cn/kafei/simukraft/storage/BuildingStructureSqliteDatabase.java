@@ -53,7 +53,7 @@ public final class BuildingStructureSqliteDatabase implements Closeable {
         this.connections = SqliteConnectionPool.open(databasePath);
         this.transactions = new TransactionRunner(connections, this::markDegraded, metrics);
         try {
-            BuildingStructureSqliteSchema.initialize(this);
+            BuildingStructureSqliteSchema.initialize(connections);
         } catch (RuntimeException exception) {
             connections.close();
             throw exception;
@@ -139,6 +139,15 @@ public final class BuildingStructureSqliteDatabase implements Closeable {
 
     public boolean isDegraded() {
         return degraded;
+    }
+
+    public boolean isClosed() {
+        return closed;
+    }
+
+    /** drainWrites: 等待队列中的写入全部落库，关服与测试用。 */
+    public boolean drainWrites() {
+        return writeQueue.drainAndReport();
     }
 
     /** pendingWrites: 当前仍在队列中等待落库的写入条数（指标用）。 */

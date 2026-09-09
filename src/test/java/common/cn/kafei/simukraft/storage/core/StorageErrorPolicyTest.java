@@ -27,6 +27,8 @@ class StorageErrorPolicyTest {
         // 忙/锁重试耗尽后仍是环境故障。
         assertEquals(StorageErrorPolicy.StorageFault.ENV_FAULT,
                 StorageErrorPolicy.classify(new SQLException("busy", "HY000", 5)));
+        assertEquals(StorageErrorPolicy.StorageFault.ENV_FAULT,
+                StorageErrorPolicy.classify(new SQLException("database or disk is full", "HY000", 13)));
         // 未知错误一律按环境处理，宁可保守。
         assertEquals(StorageErrorPolicy.StorageFault.ENV_FAULT,
                 StorageErrorPolicy.classify(new SQLException("unknown")));

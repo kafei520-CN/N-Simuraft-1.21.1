@@ -3,14 +3,16 @@ package common.cn.kafei.simukraft.storage.core;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 回归：两条通道的 PRAGMA 必须真的生效。
@@ -41,7 +43,7 @@ class SqliteConnectionPoolTest {
         try (SqliteConnectionPool pool = SqliteConnectionPool.open(tempDir.resolve("write.sqlite"))) {
             Connection connection = pool.writeConnection();
             assertPragmas(connection, SqliteConnectionPool.WRITE_BUSY_TIMEOUT_MILLIS);
-            assertFalse(connection.getAutoCommit(), "写连接必须以 autoCommit=false 打开，事务边界由 TransactionRunner 控制");
+            assertTrue(connection.getAutoCommit(), "空闲写连接必须 autoCommit=true，否则 WAL 无法截断");
         } catch (SQLException exception) {
             throw new AssertionError(exception);
         }
@@ -77,6 +79,37 @@ class SqliteConnectionPoolTest {
         assertEquals(1, queryInt(connection, "PRAGMA synchronous"));
         assertEquals(expectedBusyTimeoutMillis, queryInt(connection, "PRAGMA busy_timeout"));
         assertEquals(1, queryInt(connection, "PRAGMA foreign_keys"));
+        assertEquals(SqliteConnectionPool.JOURNAL_SIZE_LIMIT_BYTES, queryInt(connection, "PRAGMA journal_size_limit"));
+    }
+
+    @Test
+    void idleWriteConnectionAllowsWalTruncateAfterWrites() throws Exception {
+        Path databasePath = tempDir.resolve("wal-trim.sqlite");
+        try (SqliteConnectionPool pool = SqliteConnectionPool.open(databasePath)) {
+            StorageMetrics metrics = new StorageMetrics();
+            TransactionRunner runner = new TransactionRunner(pool, (context, cause) -> {
+            }, metrics);
+            runner.runSingle(connection -> {
+                try (Statement statement = connection.createStatement()) {
+                    statement.executeUpdate("CREATE TABLE probe(id INTEGER PRIMARY KEY, payload TEXT NOT NULL)");
+                }
+            });
+            runner.runSingle(connection -> {
+                try (PreparedStatement statement = connection.prepareStatement("INSERT INTO probe(id, payload) VALUES(?, ?)")) {
+                    for (int index = 0; index < 2000; index++) {
+                        statement.setInt(1, index);
+                        statement.setString(2, "x".repeat(256));
+                        statement.addBatch();
+                    }
+                    statement.executeBatch();
+                }
+            });
+            assertTrue(pool.writeConnection().getAutoCommit(), "写批次结束后必须释放事务");
+            pool.checkpoint();
+            Path wal = Path.of(databasePath.toString() + "-wal");
+            long walSize = Files.exists(wal) ? Files.size(wal) : 0L;
+            assertTrue(walSize < 8192L, "TRUNCATE checkpoint 之后 WAL 应接近空，实际 " + walSize);
+        }
     }
 
     private static int queryInt(Connection connection, String sql) throws SQLException {

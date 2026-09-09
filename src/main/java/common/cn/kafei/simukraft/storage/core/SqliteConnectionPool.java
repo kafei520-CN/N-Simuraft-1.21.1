@@ -39,10 +39,14 @@ public final class SqliteConnectionPool implements Closeable {
      * 改成 IMMEDIATE 后开事务就取写锁，busy_timeout 才能真正生效。
      * 写连接刻意不用它，见 {@link #writeConnection()} 的注释。
      */
+    /** checkpoint 成功后把 WAL 高水位截到该上限，避免单次大体素写把 -wal 钉在百兆以上。 */
+    public static final int JOURNAL_SIZE_LIMIT_BYTES = 64 * 1024 * 1024;
     private static final String POOL_URL_PARAMS =
-            "?journal_mode=WAL&synchronous=NORMAL&busy_timeout=" + POOL_BUSY_TIMEOUT_MILLIS + "&foreign_keys=on&transaction_mode=IMMEDIATE";
+            "?journal_mode=WAL&synchronous=NORMAL&busy_timeout=" + POOL_BUSY_TIMEOUT_MILLIS
+                    + "&foreign_keys=on&transaction_mode=IMMEDIATE&journal_size_limit=" + JOURNAL_SIZE_LIMIT_BYTES;
     private static final String WRITE_URL_PARAMS =
-            "?journal_mode=WAL&synchronous=NORMAL&busy_timeout=" + WRITE_BUSY_TIMEOUT_MILLIS + "&foreign_keys=on";
+            "?journal_mode=WAL&synchronous=NORMAL&busy_timeout=" + WRITE_BUSY_TIMEOUT_MILLIS
+                    + "&foreign_keys=on&journal_size_limit=" + JOURNAL_SIZE_LIMIT_BYTES;
     private static final int POOL_SIZE = 8;
     private static final long CONNECTION_TIMEOUT_MILLIS = 10_000L;
 
@@ -77,17 +81,16 @@ public final class SqliteConnectionPool implements Closeable {
 
     /**
      * writeConnection: 返回常驻写连接，只允许写队列线程调用。
-     * <p>连接以 {@code autoCommit=false} 打开，事务由 {@link TransactionRunner} 控制；
+     * <p>空闲时保持 {@code autoCommit=true}。sqlite-jdbc 的 {@code commit()} 会在提交后再 {@code BEGIN}，
+     * 若批间一直挂着事务，WAL 无法截断。事务边界由 {@link TransactionRunner} 在每批期间临时关掉 autoCommit。
      * 调用方不得 close 它。
      * <p>刻意用 DEFERRED 事务模式（URL 里不带 transaction_mode）：IMMEDIATE 模式会在每次 commit 后
-     * 立即 begin 下一个事务，批与批之间常驻持有写锁，池化连接上的写（schema 迁移、测试辅助）
-     * 会被挡成 SQLITE_BUSY；DEFERRED 在批间只持有读快照，不挡其它写者。
+     * 立即 begin 下一个事务并常驻持有写锁，池化连接上的写会被挡成 SQLITE_BUSY。
      */
     public Connection writeConnection() throws SQLException {
         if (writeConnection == null || writeConnection.isClosed()) {
-            // PRAGMA 已经在 URL 参数里，这里不再逐条 execute。
             writeConnection = java.sql.DriverManager.getConnection(writeJdbcUrl);
-            writeConnection.setAutoCommit(false);
+            writeConnection.setAutoCommit(true);
         }
         return writeConnection;
     }
@@ -98,10 +101,19 @@ public final class SqliteConnectionPool implements Closeable {
 
     /** checkpoint: 把 WAL 合并回主库并截断，避免 -wal 无限增长以及备份只拿到半份数据。 */
     public void checkpoint() {
+        executeCheckpoint("TRUNCATE");
+    }
+
+    /** checkpointPassive: 不阻塞读者，写批次结束后尽量把 WAL 折回主库。 */
+    public void checkpointPassive() {
+        executeCheckpoint("PASSIVE");
+    }
+
+    private void executeCheckpoint(String mode) {
         try (Connection connection = borrow(); Statement statement = connection.createStatement()) {
-            statement.execute("PRAGMA wal_checkpoint(TRUNCATE)");
+            statement.execute("PRAGMA wal_checkpoint(" + mode + ")");
         } catch (SQLException exception) {
-            SimuKraft.LOGGER.warn("Simukraft: failed to checkpoint SQLite WAL", exception);
+            SimuKraft.LOGGER.warn("Simukraft: failed to checkpoint SQLite WAL ({})", mode, exception);
         }
     }
 
@@ -110,7 +122,9 @@ public final class SqliteConnectionPool implements Closeable {
         if (writeConnection != null) {
             try {
                 if (!writeConnection.isClosed()) {
-                    writeConnection.rollback();
+                    if (!writeConnection.getAutoCommit()) {
+                        writeConnection.rollback();
+                    }
                     writeConnection.close();
                 }
             } catch (SQLException exception) {

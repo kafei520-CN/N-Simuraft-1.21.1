@@ -74,6 +74,7 @@ public final class TransactionRunner {
             Connection connection = null;
             try {
                 connection = connections.writeConnection();
+                connection.setAutoCommit(false);
                 for (SqlWrite operation : operations) {
                     operation.write(connection);
                 }
@@ -106,6 +107,9 @@ public final class TransactionRunner {
                     notifyAfterCommit(operations, false);
                 }
                 return false;
+            } finally {
+                releaseWriteTransaction(connection);
+                connections.checkpointPassive();
             }
         }
         return false;
@@ -143,6 +147,20 @@ public final class TransactionRunner {
             }
         }
         return false;
+    }
+
+    /** releaseWriteTransaction: 批结束后回到 autoCommit，避免 sqlite-jdbc 在 commit 后再 BEGIN 钉住 WAL。 */
+    private static void releaseWriteTransaction(Connection connection) {
+        if (connection == null) {
+            return;
+        }
+        try {
+            if (!connection.isClosed() && !connection.getAutoCommit()) {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException exception) {
+            SimuKraft.LOGGER.warn("Simukraft: failed to release SQLite write transaction", exception);
+        }
     }
 
     private static void rollbackQuietly(Connection connection) {
